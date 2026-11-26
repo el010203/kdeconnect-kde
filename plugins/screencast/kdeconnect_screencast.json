@@ -1,0 +1,25 @@
+{
+    "$schema": "../kdeconnect.schema.json",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "KDE Connect contributors"
+            }
+        ],
+        "Description": "View and share the other device's screen",
+        "EnabledByDefault": true,
+        "Icon": "video-display",
+        "License": "GPL",
+        "Name": "Screen sharing"
+    },
+    "X-KdeConnect-OutgoingPacketType": [
+        "kdeconnect.screencast.request",
+        "kdeconnect.screencast.frame",
+        "kdeconnect.screencast.stop"
+    ],
+    "X-KdeConnect-SupportedPacketType": [
+        "kdeconnect.screencast.request",
+        "kdeconnect.screencast.frame",
+        "kdeconnect.screencast.stop"
+    ]
+}

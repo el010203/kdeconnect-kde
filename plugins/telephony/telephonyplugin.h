@@ -55,5 +55,11 @@ private:
      */
     void createNotification(const NetworkPacket &np);
 
+    /**
+     * Ask the screencast plugin to show this device's screen, over D-Bus so the two
+     * plugins stay independent of each other.
+     */
+    void requestScreenShare();
+
     QPointer<KNotification> m_currentCallNotification;
 };

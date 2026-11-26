@@ -1,0 +1,23 @@
+{
+    "$schema": "../kdeconnect.schema.json",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "KDE Connect contributors"
+            }
+        ],
+        "Description": "Browse this computer's files from the other device",
+        "EnabledByDefault": true,
+        "Icon": "system-file-manager",
+        "License": "GPL",
+        "Name": "Filesystem browser"
+    },
+    "X-KdeConnect-OutgoingPacketType": [
+        "kdeconnect.filebrowser.listing",
+        "kdeconnect.share.request"
+    ],
+    "X-KdeConnect-SupportedPacketType": [
+        "kdeconnect.filebrowser.request",
+        "kdeconnect.filebrowser.download"
+    ]
+}

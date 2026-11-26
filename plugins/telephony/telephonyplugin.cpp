@@ -8,6 +8,8 @@
 #include "telephonyplugin.h"
 
 #include <KLocalizedString>
+#include <QDBusConnection>
+#include <QDBusMessage>
 #include <QDBusReply>
 #include <QDebug>
 
@@ -64,6 +66,13 @@ void TelephonyPlugin::createNotification(const NetworkPacket &np)
         m_currentCallNotification->clearActions();
         KNotificationAction *muteAction = m_currentCallNotification->addAction(i18n("Mute Call"));
         connect(muteAction, &KNotificationAction::activated, this, &TelephonyPlugin::sendMutePacket);
+
+        // Clicking the notification itself opens the phone's screen in a small window, which is
+        // what you reach for when a call comes in. Only offer it if the phone can share.
+        if (device()->supportedPlugins().contains(QStringLiteral("kdeconnect_screencast"))) {
+            KNotificationAction *screenAction = m_currentCallNotification->addDefaultAction(i18n("Show phone screen"));
+            connect(screenAction, &KNotificationAction::activated, this, &TelephonyPlugin::requestScreenShare);
+        }
     }
 
     m_currentCallNotification->sendEvent();
@@ -88,6 +97,15 @@ void TelephonyPlugin::sendMutePacket()
 {
     NetworkPacket packet(PACKET_TYPE_TELEPHONY_REQUEST_MUTE, {{QStringLiteral("action"), QStringLiteral("mute")}});
     sendPacket(packet);
+}
+
+void TelephonyPlugin::requestScreenShare()
+{
+    QDBusMessage message = QDBusMessage::createMethodCall(QStringLiteral("org.kde.kdeconnect"),
+                                                          device()->dbusPath() + QStringLiteral("/screencast"),
+                                                          QStringLiteral("org.kde.kdeconnect.device.screencast"),
+                                                          QStringLiteral("requestStream"));
+    QDBusConnection::sessionBus().send(message);
 }
 
 QString TelephonyPlugin::dbusPath() const

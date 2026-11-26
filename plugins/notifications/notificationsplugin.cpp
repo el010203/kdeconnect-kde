@@ -20,6 +20,7 @@
 #include <private/qtx11extras_p.h>
 #endif
 
+#include <QDBusMessage>
 #include <QMimeData>
 
 K_PLUGIN_CLASS_WITH_JSON(NotificationsPlugin, "kdeconnect_notifications.json")
@@ -109,6 +110,16 @@ void NotificationsPlugin::addNotification(Notification *noti)
     });
 
     connect(noti, &Notification::actionTriggered, this, &NotificationsPlugin::sendAction);
+
+    // Ask the screencast plugin for the device's screen over D-Bus, so that the two plugins
+    // stay independent of each other
+    connect(noti, &Notification::screenShareRequested, this, [this] {
+        QDBusMessage requestStream = QDBusMessage::createMethodCall(QStringLiteral("org.kde.kdeconnect"),
+                                                                    device()->dbusPath() + QStringLiteral("/screencast"),
+                                                                    QStringLiteral("org.kde.kdeconnect.device.screencast"),
+                                                                    QStringLiteral("requestStream"));
+        QDBusConnection::sessionBus().send(requestStream);
+    });
     connect(noti, &Notification::replied, this, [this, noti](const QString &message) {
         sendReply(noti->replyId(), message);
     });

@@ -141,6 +141,14 @@ void Notification::updateKNotification()
         });
     }
 
+    // Our own action, next to the ones the phone offers, to look at that device's screen
+    if (m_device->supportedPlugins().contains(QStringLiteral("kdeconnect_screencast"))) {
+        KNotificationAction *screencastAction = m_notification->addAction(i18nc("@action:button", "Show phone screen"));
+        connect(screencastAction, &KNotificationAction::activated, this, [this] {
+            Q_EMIT screenShareRequested();
+        });
+    }
+
     m_notification->setPixmap(m_contents.iconPath.isEmpty() ? QPixmap() : QPixmap(m_contents.iconPath, "PNG"));
 }
 

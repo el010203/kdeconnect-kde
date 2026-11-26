@@ -112,6 +112,7 @@ Q_SIGNALS:
     Q_SCRIPTABLE void ready();
     void actionTriggered(const QString &key, const QString &action);
     void replied(const QString &message);
+    void screenShareRequested();
 
 private:
     // Actual notification data, whose changes are announced on D-Bus with ready()
