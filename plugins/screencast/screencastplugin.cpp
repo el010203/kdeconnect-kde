@@ -22,6 +22,63 @@
 
 K_PLUGIN_CLASS_WITH_JSON(ScreencastPlugin, "kdeconnect_screencast.json")
 
+/**
+ * Reads one incoming frame.
+ *
+ * A payload travels over its own socket, which is still being connected when the packet is
+ * dispatched, so the bytes have to be collected as they arrive. The reader keeps the socket
+ * alive and deletes itself once the frame has been decoded.
+ */
+class ScreencastFrameReader : public QObject
+{
+    Q_OBJECT
+
+public:
+    ScreencastFrameReader(const QSharedPointer<QIODevice> &payload, qint64 payloadSize, QObject *parent)
+        : QObject(parent)
+        , m_payload(payload)
+        , m_payloadSize(payloadSize)
+    {
+        connect(m_payload.data(), &QIODevice::readyRead, this, &ScreencastFrameReader::read);
+        connect(m_payload.data(), &QIODevice::readChannelFinished, this, &ScreencastFrameReader::read);
+        read();
+    }
+
+Q_SIGNALS:
+    void frameReceived(const QImage &frame);
+
+private:
+    void read()
+    {
+        QIODevice *stream = m_payload.data();
+        if (m_finished || !stream) {
+            return;
+        }
+
+        m_data.append(stream->readAll());
+        // A short buffer means the transfer is not finished yet
+        if (m_data.isEmpty() || (m_payloadSize > 0 && m_data.size() < m_payloadSize)) {
+            return;
+        }
+
+        const QImage frame = QImage::fromData(m_data, "JPEG");
+        m_finished = true;
+        m_data.clear();
+
+        if (frame.isNull()) {
+            qCWarning(KDECONNECT_PLUGIN_SCREENCAST) << "Could not decode the received frame";
+        } else {
+            Q_EMIT frameReceived(frame);
+        }
+        deleteLater();
+    }
+
+    QSharedPointer<QIODevice> m_payload;
+    qint64 m_payloadSize;
+    QByteArray m_data;
+    bool m_finished = false;
+};
+
 namespace
 {
 constexpr int MaxFrameWidth = 1280;
@@ -74,13 +131,8 @@ void ScreencastPlugin::handleFrame(const NetworkPacket &np)
         return;
     }
 
-    const QImage frame = QImage::fromData(payload->readAll(), "JPEG");
-    if (frame.isNull()) {
-        qCWarning(KDECONNECT_PLUGIN_SCREENCAST) << "Could not decode the received frame";
-        return;
-    }
-
-    showFrame(frame);
+    auto *reader = new ScreencastFrameReader(payload, np.payloadSize(), this);
+    connect(reader, &ScreencastFrameReader::frameReceived, this, &ScreencastPlugin::showFrame);
 }
 
 void ScreencastPlugin::showFrame(const QImage &frame)
@@ -116,7 +168,7 @@ void ScreencastPlugin::sendFrame()
     NetworkPacket np(PACKET_TYPE_SCREENCAST_FRAME);
     auto payload = QSharedPointer<QBuffer>::create();
     payload->setData(encoded);
-    payload->open(QIODevice::ReadOnly);
+    // Left closed on purpose: the upload job opens the payload before reading it
     np.setPayload(payload, encoded.size());
 
     if (!sendPacket(np)) {
