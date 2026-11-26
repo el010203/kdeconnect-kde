@@ -1,0 +1,49 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    # CachyOS is Arch based, so build against Arch packages: they already ship Qt 6.10 and KF6,
+    # which satisfy the Qt 6.9 / KF6 6.3 this tree requires
+    name: Build on Arch Linux (CachyOS packages)
+    runs-on: ubuntu-24.04
+    container:
+      image: archlinux:latest
+      options: --user root
+    steps:
+      - name: Install build dependencies
+        # Package list taken from Arch's official kdeconnect PKGBUILD
+        run: |
+          pacman -Syu --noconfirm --needed \
+            base-devel cmake ninja git \
+            extra-cmake-modules kpackage wayland-protocols \
+            dbus kconfig kcoreaddons kcrash kdbusaddons kguiaddons ki18n kiconthemes \
+            kcolorscheme kio kirigami kirigami-addons kitemmodels kjobwidgets knotifications \
+            kpeople kservice kstatusnotifieritem kwidgetsaddons kwindowsystem \
+            libei libevdev libfakekey libx11 libxkbcommon libxtst modemmanager-qt openssl \
+            pulseaudio-qt qqc2-desktop-style qt6-base qt6-connectivity qt6-declarative \
+            qt6-multimedia qt6-tools qt6-wayland solid wayland sshfs
+
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        # /usr so the staged tree can be copied onto a CachyOS install and be found without
+        # any extra environment variables
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/usr
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Stage install
+        # Collects the install tree so it can be copied onto a CachyOS machine as-is
+        run: DESTDIR="$PWD/build/stage" cmake --install build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kdeconnect-arch
+          path: build/stage
+          if-no-files-found: error
